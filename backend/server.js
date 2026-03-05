@@ -96,7 +96,7 @@ app.post('/api/auth/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await db.query(
       `INSERT INTO users (name, email, password_hash, role, plan, created_at)
-       VALUES ($1,$2,$3,'player','free',NOW()) RETURNING id,name,email,role,plan`,
+       VALUES ($1,$2,$3,'player','premium',NOW()) RETURNING id,name,email,role,plan`,
       [name.trim(), email.toLowerCase().trim(), hash]
     );
     const user = rows[0];
@@ -135,6 +135,18 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     res.json(rows[0]);
   } catch(e) { res.status(500).json({ error: 'Could not fetch user' }); }
+});
+
+// POST /api/auth/change-password
+app.post('/api/auth/change-password', authenticate, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const hash = await bcrypt.hash(password, 12);
+    await db.query('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, req.user.id]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: 'Could not update password' }); }
 });
 
 // ════════════════════════════════════════════════════════════

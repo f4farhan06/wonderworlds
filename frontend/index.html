@@ -495,7 +495,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);min-height:100vh;overf
 // ═══════════════════════════════════════════════
 //  ⚙️  CONFIG — edit these values
 // ═══════════════════════════════════════════════
-const API_URL   = 'https://wonderworlds-production.up.railway.app/api';   // Change for production
+const API_URL   = 'wonderworlds-production.up.railway.app/api';   // Change for production
 const ADMIN_PIN = '1234';                         // Change to your PIN
 const FREE_WORLDS = new Set(['math','science','quiz']);
 
@@ -773,13 +773,43 @@ function openAuthModal() {
         <div class="auth-title">👨‍👩‍👧 Parent Access</div>
         <div class="auth-sub" id="authSubText">Register or log in to unlock all worlds for your family.</div>
         ${PARENT.loggedIn ? `
-          <div style="background:rgba(16,185,129,.1);border:1.5px solid rgba(16,185,129,.3);border-radius:14px;padding:16px;margin-bottom:18px">
-            <div style="font-family:'Fredoka One',cursive;font-size:17px;color:#6EE7B7;margin-bottom:4px">✅ Logged in as</div>
-            <div style="font-size:14px;color:rgba(255,255,255,.8)">${PARENT.name||''}</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.5)">${PARENT.email}</div>
-            <div style="font-size:12px;color:#A5B4FC;margin-top:6px">Plan: <strong>${PARENT.plan}</strong>${isParentPremium()?' — All worlds unlocked! 🔓':' — Free plan (worlds 1–3 only)'}</div>
+          <!-- ── Account Details ── -->
+          <div style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.25);border-radius:16px;padding:18px;margin-bottom:14px;text-align:left">
+            <div style="font-family:'Fredoka One',cursive;font-size:15px;color:#6EE7B7;margin-bottom:10px">✅ My Account</div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:7px">
+                <span style="font-size:12px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:1px">Name</span>
+                <span style="font-size:14px;font-weight:700">${PARENT.name||'—'}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:7px">
+                <span style="font-size:12px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:1px">Email</span>
+                <span style="font-size:13px;color:rgba(255,255,255,.75)">${PARENT.email}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:7px">
+                <span style="font-size:12px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:1px">Plan</span>
+                <span style="font-size:13px;font-weight:700;color:${isParentPremium()?'#6EE7B7':'#FCD34D'}">${PARENT.plan.charAt(0).toUpperCase()+PARENT.plan.slice(1)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:1px">Access</span>
+                <span style="font-size:13px;font-weight:700;color:${isParentPremium()?'#6EE7B7':'#FCA5A5'}">${isParentPremium()?'🔓 All 6 Worlds':'🔒 3 Free Worlds only'}</span>
+              </div>
+            </div>
           </div>
-          <button class="btn-auth" onclick="logoutParent()">🔓 Logout</button>
+          <!-- ── Change Password ── -->
+          <div style="background:rgba(99,102,241,.08);border:1.5px solid rgba(99,102,241,.2);border-radius:14px;padding:14px;margin-bottom:14px">
+            <div style="font-family:'Fredoka One',cursive;font-size:14px;color:#A5B4FC;margin-bottom:10px">🔑 Change Password</div>
+            <div class="auth-fg" style="margin-bottom:8px">
+              <label>New Password (min 8 chars)</label>
+              <input type="password" id="newPass1" placeholder="New password…" autocomplete="new-password">
+            </div>
+            <div class="auth-fg" style="margin-bottom:10px">
+              <label>Confirm New Password</label>
+              <input type="password" id="newPass2" placeholder="Confirm password…" autocomplete="new-password">
+            </div>
+            <button class="btn-auth" style="font-size:15px;padding:10px" onclick="changePassword()">💾 Update Password</button>
+            <div id="pwMsg" style="min-height:18px;margin-top:6px;font-size:12px;font-weight:700;text-align:center"></div>
+          </div>
+          <button class="btn-auth" style="background:linear-gradient(135deg,#EF4444,#DC2626);box-shadow:0 7px 18px rgba(239,68,68,.35)" onclick="logoutParent()">🔓 Logout</button>
           <button class="pin-cancel" onclick="closeAuthModal()" style="margin-top:10px;display:block;width:100%">Close</button>
         ` : `
           <div class="auth-tabs">
@@ -865,6 +895,23 @@ function showAuthMsg(msg, isErr) {
   if (!el) return;
   el.className = isErr ? 'auth-err' : 'auth-ok';
   el.textContent = msg;
+}
+
+async function changePassword() {
+  const p1 = document.getElementById('newPass1')?.value||'';
+  const p2 = document.getElementById('newPass2')?.value||'';
+  const msg = document.getElementById('pwMsg');
+  if (!p1 || p1.length < 8) { msg.style.color='#FCA5A5'; msg.textContent='Password must be at least 8 characters.'; return; }
+  if (p1 !== p2) { msg.style.color='#FCA5A5'; msg.textContent='Passwords do not match.'; return; }
+  msg.style.color='#FCD34D'; msg.textContent='Saving…';
+  const data = await api('/auth/change-password', {method:'POST', body:JSON.stringify({password:p1})});
+  if (!data || data.error) {
+    msg.style.color='#FCA5A5'; msg.textContent = data?.error||'Failed — please try again.';
+  } else {
+    msg.style.color='#6EE7B7'; msg.textContent='✅ Password updated!';
+    document.getElementById('newPass1').value='';
+    document.getElementById('newPass2').value='';
+  }
 }
 
 function logoutParent() {
