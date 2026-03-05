@@ -918,8 +918,7 @@ function pickWorld(worldId, worldKey) {
 
 // ─── Question fetch (API → fallback) ───
 async function getQuestions(worldKey, worldId, diff, count) {
-  // Try API
-  if(API_ON && typeof worldId==='number') {
+  if(API_ON && worldId !== null && worldId !== undefined) {
     const excl=[...G.usedQIds].join(',');
     const data = await api(`/questions/${worldId}/${diff}?count=${count}${excl?'&exclude='+excl:''}`);
     if(data && data.length) {
@@ -931,7 +930,6 @@ async function getQuestions(worldKey, worldId, diff, count) {
       }));
     }
   }
-  // Built-in fallback
   return pickBuiltin(worldKey, diff, count);
 }
 
